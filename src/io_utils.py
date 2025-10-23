@@ -43,5 +43,9 @@ def load_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     return normalize_columns(df)
 
+def load_excel(path: str) -> pd.DataFrame:
+    df = pd.read_excel(path)
+    return normalize_columns(df)
+
 def save_csv(df: pd.DataFrame, path: str) -> None:
     df.to_csv(path, index=False)

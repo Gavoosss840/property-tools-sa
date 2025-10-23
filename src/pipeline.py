@@ -2,7 +2,7 @@
 src/pipeline.py
 
 Assemble the end-to-end pipeline used by the Streamlit app:
-1) Extract addresses from a foreclosure-style PDF into CSV
+1) Load addresses from Excel/CSV (normalized columns)
 2) Geocode addresses (OSM first, then Google if available)
 3) Split into San Antonio zones and write per-zone CSVs
 4) Return summary statistics for display
@@ -13,7 +13,6 @@ from typing import Dict
 
 import pandas as pd
 
-from .pdf_extractor import process_pdf_to_csv
 from .geocode_hybrid import geocode_hybrid_batch
 from .area_filters import (
     filter_by_polygon,
@@ -23,25 +22,30 @@ from .area_filters import (
     WEST_SA_RECT,
 )
 from .io_utils import load_csv as load_csv_normalized
+from .io_utils import load_excel as load_excel_normalized
 
 
-def run_full_pipeline(pdf_path: str) -> Dict[str, int]:
-    """Run the full pipeline and return stats for the UI.
+# NOTE: PDF flow removed; CSV-only pipeline retained below
 
-    Args:
-        pdf_path: Path to the input PDF containing addresses.
 
-    Returns:
-        Dict with keys: total_addresses, geocoded, unassigned, north, south, east, west
+def run_csv_pipeline(csv_path: str) -> Dict[str, int]:
+    """Pipeline that starts from a user-provided CSV.
+
+    - Loads and normalizes columns (address, city, state, zip)
+    - Geocodes with hybrid method
+    - Splits into zones and writes outputs
+    - Returns pipeline summary statistics for the UI
     """
-    input_csv = Path("data/input.csv")
     outputs_dir = Path("data/outputs")
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1) PDF -> CSV of addresses
-    extracted_count = process_pdf_to_csv(pdf_path, str(input_csv))
-    if extracted_count == 0:
-        # Nothing to do
+    # Load CSV with column normalization
+    df = load_csv_normalized(csv_path)
+    # Harmonize common typo 'adress' -> 'address'
+    if "address" not in df.columns and "adress" in df.columns:
+        df = df.rename(columns={"adress": "address"})
+
+    if df.empty:
         return {
             "total_addresses": 0,
             "geocoded": 0,
@@ -52,15 +56,14 @@ def run_full_pipeline(pdf_path: str) -> Dict[str, int]:
             "west": 0,
         }
 
-    # 2) Load and geocode
-    df = pd.read_csv(input_csv)
+    # Geocode
     df_geo = geocode_hybrid_batch(df)
 
-    # Save all geocoded addresses for debugging/download
+    # Save all geocoded addresses
     all_path = outputs_dir / "all_addresses_geocoded.csv"
     df_geo.to_csv(all_path, index=False)
 
-    # 3) Filter into zones
+    # Zones
     df_geo_valid = df_geo.dropna(subset=["lat", "lon"]).copy()
 
     north_df = filter_by_polygon(df_geo_valid, NORTH_SA_RECT)
@@ -68,13 +71,13 @@ def run_full_pipeline(pdf_path: str) -> Dict[str, int]:
     east_df = filter_by_polygon(df_geo_valid, EAST_SA_RECT)
     west_df = filter_by_polygon(df_geo_valid, WEST_SA_RECT)
 
-    # 4) Save per-zone CSVs
+    # Save per-zone CSVs
     (outputs_dir / "north_san_antonio.csv").write_text("") if len(north_df) == 0 else north_df.to_csv(outputs_dir / "north_san_antonio.csv", index=False)
     (outputs_dir / "south_san_antonio.csv").write_text("") if len(south_df) == 0 else south_df.to_csv(outputs_dir / "south_san_antonio.csv", index=False)
     (outputs_dir / "east_san_antonio.csv").write_text("") if len(east_df) == 0 else east_df.to_csv(outputs_dir / "east_san_antonio.csv", index=False)
     (outputs_dir / "west_san_antonio.csv").write_text("") if len(west_df) == 0 else west_df.to_csv(outputs_dir / "west_san_antonio.csv", index=False)
 
-    # 5) Compute stats
+    # Stats
     total = len(df_geo)
     geocoded = df_geo_valid.shape[0]
     assigned = sum(len(x) for x in (north_df, south_df, east_df, west_df))
@@ -91,19 +94,19 @@ def run_full_pipeline(pdf_path: str) -> Dict[str, int]:
     }
 
 
-def run_csv_pipeline(csv_path: str) -> Dict[str, int]:
-    """Pipeline that starts from a user-provided CSV.
+def run_excel_pipeline(xlsx_path: str) -> Dict[str, int]:
+    """Pipeline that starts from a user-provided Excel (.xlsx).
 
     - Loads and normalizes columns (address, city, state, zip)
     - Geocodes with hybrid method
     - Splits into zones and writes outputs
-    - Returns stats like the PDF pipeline
+    - Returns pipeline summary statistics for the UI
     """
     outputs_dir = Path("data/outputs")
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load CSV with column normalization
-    df = load_csv_normalized(csv_path)
+    # Load Excel with column normalization
+    df = load_excel_normalized(xlsx_path)
     # Harmonize common typo 'adress' -> 'address'
     if "address" not in df.columns and "adress" in df.columns:
         df = df.rename(columns={"adress": "address"})

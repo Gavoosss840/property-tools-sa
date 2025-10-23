@@ -1,7 +1,7 @@
 % README content is below
 Property Tools – San Antonio (Streamlit)
 
-Analyze foreclosure PDFs, geocode addresses (OSM first, Google as fallback), and split results into San Antonio zones (North/South/East/West). Built with Streamlit.
+Analyze uploaded CSVs of addresses, geocode (OSM first, Google as fallback), and split results into San Antonio zones (North/South/East/West). Built with Streamlit.
 
 Quick Start (Local)
 - Python 3.10–3.12
@@ -23,7 +23,7 @@ Required keys:
 - `GOOGLE_MAPS_API_KEY` – only used if OSM fails (optional but recommended)
 
 Data and Outputs
-- Upload a foreclosure PDF in the UI.
+- Upload a CSV of addresses in the UI (columns like `address, city, state, zip`; common variants are auto-detected).
 - Outputs are written to `data/outputs/` (ignored by Git):
   - `north_san_antonio.csv`, `south_san_antonio.csv`, `east_san_antonio.csv`, `west_san_antonio.csv`
   - `all_addresses_geocoded.csv`
@@ -44,3 +44,4 @@ Troubleshooting
 
 License
 Private project. All rights reserved.
+
