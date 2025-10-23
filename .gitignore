@@ -1,0 +1,56 @@
+# Secrets et données sensibles
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Données locales (générées / volumineuses)
+# Garder les exemples utiles versionnés (voir exceptions plus bas)
+data/outputs/
+data/tmp/
+data/cache/
+data/raw/
+data/geocode_cache.csv
+*.pdf
+
+# Autoriser les fichiers d'exemple nécessaires
+!data/input.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Logs
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Poetry (si utilisé)
+poetry.lock
+
