@@ -25,136 +25,70 @@ from .io_utils import load_csv as load_csv_normalized
 from .io_utils import load_excel as load_excel_normalized
 
 
-# NOTE: PDF flow removed; CSV-only pipeline retained below
+# NOTE: PDF flow removed; CSV/Excel pipelines only
+
+
+def _run_pipeline(df) -> Dict[str, int]:
+    """Shared core: geocode, split into zones, write outputs, return stats."""
+    outputs_dir = Path("data/outputs")
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
+    if df.empty:
+        return {
+            "total_addresses": 0,
+            "geocoded": 0,
+            "unassigned": 0,
+            "north": 0,
+            "south": 0,
+            "east": 0,
+            "west": 0,
+        }
+
+    # Geocode
+    df_geo = geocode_hybrid_batch(df)
+
+    # Save all geocoded addresses
+    all_path = outputs_dir / "all_addresses_geocoded.csv"
+    df_geo.to_csv(all_path, index=False)
+
+    # Zones (valid lat/lon only)
+    df_geo_valid = df_geo.dropna(subset=["lat", "lon"]).copy()
+
+    north_df = filter_by_polygon(df_geo_valid, NORTH_SA_RECT)
+    south_df = filter_by_polygon(df_geo_valid, SOUTH_SA_RECT)
+    east_df = filter_by_polygon(df_geo_valid, EAST_SA_RECT)
+    west_df = filter_by_polygon(df_geo_valid, WEST_SA_RECT)
+
+    # Save per-zone CSVs (create empty files if no rows)
+    (outputs_dir / "north_san_antonio.csv").write_text("") if len(north_df) == 0 else north_df.to_csv(outputs_dir / "north_san_antonio.csv", index=False)
+    (outputs_dir / "south_san_antonio.csv").write_text("") if len(south_df) == 0 else south_df.to_csv(outputs_dir / "south_san_antonio.csv", index=False)
+    (outputs_dir / "east_san_antonio.csv").write_text("") if len(east_df) == 0 else east_df.to_csv(outputs_dir / "east_san_antonio.csv", index=False)
+    (outputs_dir / "west_san_antonio.csv").write_text("") if len(west_df) == 0 else west_df.to_csv(outputs_dir / "west_san_antonio.csv", index=False)
+
+    # Stats
+    total = len(df_geo)
+    geocoded = df_geo_valid.shape[0]
+    assigned = sum(len(x) for x in (north_df, south_df, east_df, west_df))
+    unassigned = max(0, geocoded - assigned)
+
+    return {
+        "total_addresses": int(total),
+        "geocoded": int(geocoded),
+        "unassigned": int(unassigned),
+        "north": int(len(north_df)),
+        "south": int(len(south_df)),
+        "east": int(len(east_df)),
+        "west": int(len(west_df)),
+    }
 
 
 def run_csv_pipeline(csv_path: str) -> Dict[str, int]:
-    """Pipeline that starts from a user-provided CSV.
-
-    - Loads and normalizes columns (address, city, state, zip)
-    - Geocodes with hybrid method
-    - Splits into zones and writes outputs
-    - Returns pipeline summary statistics for the UI
-    """
-    outputs_dir = Path("data/outputs")
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-
-    # Load CSV with column normalization
+    """Pipeline starting from a user-provided CSV file."""
     df = load_csv_normalized(csv_path)
-    # Harmonize common typo 'adress' -> 'address'
-    if "address" not in df.columns and "adress" in df.columns:
-        df = df.rename(columns={"adress": "address"})
-
-    if df.empty:
-        return {
-            "total_addresses": 0,
-            "geocoded": 0,
-            "unassigned": 0,
-            "north": 0,
-            "south": 0,
-            "east": 0,
-            "west": 0,
-        }
-
-    # Geocode
-    df_geo = geocode_hybrid_batch(df)
-
-    # Save all geocoded addresses
-    all_path = outputs_dir / "all_addresses_geocoded.csv"
-    df_geo.to_csv(all_path, index=False)
-
-    # Zones
-    df_geo_valid = df_geo.dropna(subset=["lat", "lon"]).copy()
-
-    north_df = filter_by_polygon(df_geo_valid, NORTH_SA_RECT)
-    south_df = filter_by_polygon(df_geo_valid, SOUTH_SA_RECT)
-    east_df = filter_by_polygon(df_geo_valid, EAST_SA_RECT)
-    west_df = filter_by_polygon(df_geo_valid, WEST_SA_RECT)
-
-    # Save per-zone CSVs
-    (outputs_dir / "north_san_antonio.csv").write_text("") if len(north_df) == 0 else north_df.to_csv(outputs_dir / "north_san_antonio.csv", index=False)
-    (outputs_dir / "south_san_antonio.csv").write_text("") if len(south_df) == 0 else south_df.to_csv(outputs_dir / "south_san_antonio.csv", index=False)
-    (outputs_dir / "east_san_antonio.csv").write_text("") if len(east_df) == 0 else east_df.to_csv(outputs_dir / "east_san_antonio.csv", index=False)
-    (outputs_dir / "west_san_antonio.csv").write_text("") if len(west_df) == 0 else west_df.to_csv(outputs_dir / "west_san_antonio.csv", index=False)
-
-    # Stats
-    total = len(df_geo)
-    geocoded = df_geo_valid.shape[0]
-    assigned = sum(len(x) for x in (north_df, south_df, east_df, west_df))
-    unassigned = max(0, geocoded - assigned)
-
-    return {
-        "total_addresses": int(total),
-        "geocoded": int(geocoded),
-        "unassigned": int(unassigned),
-        "north": int(len(north_df)),
-        "south": int(len(south_df)),
-        "east": int(len(east_df)),
-        "west": int(len(west_df)),
-    }
+    return _run_pipeline(df)
 
 
 def run_excel_pipeline(xlsx_path: str) -> Dict[str, int]:
-    """Pipeline that starts from a user-provided Excel (.xlsx).
-
-    - Loads and normalizes columns (address, city, state, zip)
-    - Geocodes with hybrid method
-    - Splits into zones and writes outputs
-    - Returns pipeline summary statistics for the UI
-    """
-    outputs_dir = Path("data/outputs")
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-
-    # Load Excel with column normalization
+    """Pipeline starting from a user-provided Excel (.xlsx) file."""
     df = load_excel_normalized(xlsx_path)
-    # Harmonize common typo 'adress' -> 'address'
-    if "address" not in df.columns and "adress" in df.columns:
-        df = df.rename(columns={"adress": "address"})
-
-    if df.empty:
-        return {
-            "total_addresses": 0,
-            "geocoded": 0,
-            "unassigned": 0,
-            "north": 0,
-            "south": 0,
-            "east": 0,
-            "west": 0,
-        }
-
-    # Geocode
-    df_geo = geocode_hybrid_batch(df)
-
-    # Save all geocoded addresses
-    all_path = outputs_dir / "all_addresses_geocoded.csv"
-    df_geo.to_csv(all_path, index=False)
-
-    # Zones
-    df_geo_valid = df_geo.dropna(subset=["lat", "lon"]).copy()
-
-    north_df = filter_by_polygon(df_geo_valid, NORTH_SA_RECT)
-    south_df = filter_by_polygon(df_geo_valid, SOUTH_SA_RECT)
-    east_df = filter_by_polygon(df_geo_valid, EAST_SA_RECT)
-    west_df = filter_by_polygon(df_geo_valid, WEST_SA_RECT)
-
-    # Save per-zone CSVs
-    (outputs_dir / "north_san_antonio.csv").write_text("") if len(north_df) == 0 else north_df.to_csv(outputs_dir / "north_san_antonio.csv", index=False)
-    (outputs_dir / "south_san_antonio.csv").write_text("") if len(south_df) == 0 else south_df.to_csv(outputs_dir / "south_san_antonio.csv", index=False)
-    (outputs_dir / "east_san_antonio.csv").write_text("") if len(east_df) == 0 else east_df.to_csv(outputs_dir / "east_san_antonio.csv", index=False)
-    (outputs_dir / "west_san_antonio.csv").write_text("") if len(west_df) == 0 else west_df.to_csv(outputs_dir / "west_san_antonio.csv", index=False)
-
-    # Stats
-    total = len(df_geo)
-    geocoded = df_geo_valid.shape[0]
-    assigned = sum(len(x) for x in (north_df, south_df, east_df, west_df))
-    unassigned = max(0, geocoded - assigned)
-
-    return {
-        "total_addresses": int(total),
-        "geocoded": int(geocoded),
-        "unassigned": int(unassigned),
-        "north": int(len(north_df)),
-        "south": int(len(south_df)),
-        "east": int(len(east_df)),
-        "west": int(len(west_df)),
-    }
+    return _run_pipeline(df)
