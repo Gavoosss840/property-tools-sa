@@ -1,7 +1,7 @@
 """
 src/pipeline.py
 
-Assemble the end-to-end pipeline used by the Streamlit app:
+End-to-end pipeline for the Streamlit app (CSV/Excel only):
 1) Load addresses from Excel/CSV (normalized columns)
 2) Geocode addresses (OSM first, then Google if available)
 3) Split into San Antonio zones and write per-zone CSVs
@@ -25,10 +25,7 @@ from .io_utils import load_csv as load_csv_normalized
 from .io_utils import load_excel as load_excel_normalized
 
 
-# NOTE: PDF flow removed; CSV/Excel pipelines only
-
-
-def _run_pipeline(df) -> Dict[str, int]:
+def _run_pipeline(df: pd.DataFrame) -> Dict[str, int]:
     """Shared core: geocode, split into zones, write outputs, return stats."""
     outputs_dir = Path("data/outputs")
     outputs_dir.mkdir(parents=True, exist_ok=True)
