@@ -91,15 +91,7 @@ def run_excel_pipeline(xlsx_path: str) -> Dict[str, int]:
     return _run_pipeline(df)
 
 
-# ---------------------------------------------
-# Legacy compatibility (helps IDEs/static checkers)
-# ---------------------------------------------
-def process_pdf_to_csv(*_args, **_kwargs):  # pragma: no cover
-    """Deprecated: PDF input is no longer supported.
-
-    This stub exists only to avoid undefined-name warnings in tools like Pylance
-    if older code still references `process_pdf_to_csv`.
-    """
-    raise RuntimeError(
-        "PDF import deprecated. Use run_csv_pipeline/run_excel_pipeline with CSV/Excel inputs."
-    )
+__all__ = [
+    "run_csv_pipeline",
+    "run_excel_pipeline",
+]
