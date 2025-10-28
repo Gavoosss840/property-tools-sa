@@ -1,5 +1,5 @@
 ﻿# app.py
-# Interface web sÃ©curisÃ©e pour Property Tools
+# Interface web sécurisée pour Property Tools
 import streamlit as st
 from pathlib import Path
 import tempfile
@@ -13,172 +13,171 @@ load_dotenv()
 # Configuration de la page
 st.set_page_config(
     page_title="Property Tools - San Antonio",
-    page_icon="ðŸ ",
+    page_icon="🏠",
     layout="wide"
 )
 
 # ==========================================
-# SYSTÃˆME D'AUTHENTIFICATION
+# SYSTÈME D'AUTHENTIFICATION
 # ==========================================
 def check_password():
     """Retourne True si le mot de passe est correct"""
     
     def password_entered():
-        """VÃ©rifie le mot de passe entrÃ©"""
+        """Vérifie le mot de passe entré"""
         correct_password = st.secrets.get("PASSWORD", os.getenv("PASSWORD", ""))
         
         if st.session_state["password"] == correct_password:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Ne pas garder le mot de passe en mÃ©moire
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
-    # Si dÃ©jÃ  authentifiÃ©
+    # Si déjà authentifié
     if st.session_state.get("password_correct", False):
         return True
 
     # Afficher le formulaire de connexion
-    st.markdown("<h1 style='text-align: center;'>ðŸ  Property Tools</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center;'>San Antonio Foreclosure Analyzer</h3>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🏠 Property Tools</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>San Antonio Address Analyzer</h3>", unsafe_allow_html=True)
     st.markdown("---")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        st.markdown("### ðŸ”’ Connexion")
+        st.markdown("### 🔒 Login")
         st.text_input(
-            "Mot de passe",
+            "Password",
             type="password",
             on_change=password_entered,
             key="password",
-            placeholder="Entrez votre mot de passe"
+            placeholder="Enter your password"
         )
         
         if "password_correct" in st.session_state and not st.session_state["password_correct"]:
-            st.error("âŒ Mot de passe incorrect")
+            st.error("❌ Incorrect password")
         
-        st.info("ðŸ’¡ Contactez l'administrateur pour obtenir l'accÃ¨s")
+        st.info("💡 Contact administrator for access")
     
     return False
 
-# VÃ©rifier l'authentification
+# Vérifier l'authentification
 if not check_password():
     st.stop()
 
 # ==========================================
-# APPLICATION PRINCIPALE (aprÃ¨s authentification)
+# APPLICATION PRINCIPALE
 # ==========================================
 
-# En-tÃªte avec bouton dÃ©connexion
+# En-tête avec bouton déconnexion
 col1, col2 = st.columns([5, 1])
 with col1:
-    st.title("ðŸ  Property Tools - San Antonio")
-    st.markdown("**Analyseur de foreclosures par zones gÃ©ographiques**")
+    st.title("🏠 Property Tools - San Antonio")
+    st.markdown("**Address analyzer by geographic zones**")
 with col2:
-    st.write("")  # Espace
-    if st.button("ðŸšª DÃ©connexion", type="secondary"):
+    st.write("")
+    if st.button("🚪 Logout", type="secondary"):
         st.session_state["password_correct"] = False
         st.rerun()
 
 st.markdown("---")
 
-# Sidebar pour les infos
+# Sidebar
 with st.sidebar:
-    st.header("ðŸ“‹ Mode d'emploi")
+    st.header("📋 How to use")
     st.markdown("""
-    ### Ã‰tapes :
-    ### Steps :
-    1. Upload your Excel (.xlsx) or CSV of addresses
-    3. **ðŸ’¾ TÃ©lÃ©chargez** les CSVs par zone
+    ### Steps:
+    1. **📄 Upload** your Excel (.xlsx) or CSV
+    2. **🚀 Click** "Run Pipeline"
+    3. **💾 Download** CSVs by zone
     
-    ### Zones disponibles :
-    - ðŸ§­ **North** San Antonio
-    - ðŸ§­ **South** San Antonio
-    - ðŸ§­ **East** San Antonio
-    - ðŸ§­ **West** San Antonio
+    ### Available zones:
+    - 🧭 **North** San Antonio
+    - 🧭 **South** San Antonio
+    - 🧭 **East** San Antonio
+    - 🧭 **West** San Antonio
     """)
     
     st.markdown("---")
     
-    st.header("â„¹ï¸ Format attendu")
-    st.header("Expected format (Excel or CSV)")
+    st.header("ℹ️ Expected format")
     st.code("""
 address,city,state,zip
 123 MAIN ST,SAN ANTONIO,TX,78201
 456 OAK AVE,SAN ANTONIO,TX,78220
     """)
+    
     st.markdown("---")
-    st.caption("ðŸ”’ Application sÃ©curisÃ©e")
-    st.caption("Â© 2025 B. Horizon")
+    st.caption("🔒 Secure application")
+    st.caption("© 2025 B. Horizon")
 
-# Zone principale d'upload
+# Upload zone
 uploaded_file = st.file_uploader(
-    "Upload your Excel (.xlsx) or CSV here",
-    type=["xlsx","csv"],
-    help="Colonnes suggerees: address, city, state, zip (variantes communes auto-detectees)"
+    "📄 Upload your Excel (.xlsx) or CSV here",
+    type=["xlsx", "csv"],
+    help="Suggested columns: address, city, state, zip (common variants auto-detected)"
 )
 
 if uploaded_file is not None:
-    st.success(f"âœ… Fichier chargÃ© : **{uploaded_file.name}** ({uploaded_file.size / 1024:.1f} KB)")
+    st.success(f"✅ File loaded: **{uploaded_file.name}** ({uploaded_file.size / 1024:.1f} KB)")
     
-    # Bouton Run Pipeline
+    # Run button
     col1, col2, col3 = st.columns([2, 3, 2])
     with col2:
-        run_button = st.button("ðŸš€ RUN PIPELINE", type="primary", use_container_width=True)
+        run_button = st.button("🚀 RUN PIPELINE", type="primary", use_container_width=True)
     
     if run_button:
-        # CrÃ©er un container pour le contenu dynamique
         status_container = st.container()
         
         with status_container:
-            with st.spinner("ðŸ”„ Traitement en cours..."):
-                # Save uploaded file temporarily (Excel or CSV)
+            with st.spinner("🔄 Processing..."):
+                # Save file temporarily
                 _name = uploaded_file.name.lower()
                 _is_xlsx = _name.endswith('.xlsx')
                 _suffix = '.xlsx' if _is_xlsx else '.csv'
+                
                 with tempfile.NamedTemporaryFile(delete=False, suffix=_suffix) as tmp_file:
                     tmp_file.write(uploaded_file.getvalue())
                     tmp_path = tmp_file.name
 
                 try:
-                    # Run pipeline based on file type
+                    # Run pipeline
                     stats = run_excel_pipeline(tmp_path) if _is_xlsx else run_csv_pipeline(tmp_path)
-                    st.success("âœ… Pipeline terminÃ© avec succÃ¨s !")
+                    st.success("✅ Pipeline completed successfully!")
                     
-                    # Statistiques globales
-                    st.subheader("ðŸ“Š RÃ©sultats")
+                    # Global stats
+                    st.subheader("📊 Results")
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("Total adresses", stats["total_addresses"], help="Adresses lues depuis le fichier")
+                        st.metric("Total addresses", stats["total_addresses"])
                     with col2:
-                        st.metric("GÃ©ocodÃ©es", stats["geocoded"], 
-                                 delta=f"{stats['geocoded']/stats['total_addresses']*100:.0f}%" if stats['total_addresses'] > 0 else "0%",
-                                 help="Adresses converties en coordonnÃ©es GPS")
+                        pct = f"{stats['geocoded']/stats['total_addresses']*100:.0f}%" if stats['total_addresses'] > 0 else "0%"
+                        st.metric("Geocoded", stats["geocoded"], delta=pct)
                     with col3:
-                        st.metric("Hors zones", stats["unassigned"], help="Adresses en dehors des 4 zones dÃ©finies")
+                        st.metric("Out of zones", stats["unassigned"])
                     
-                    # RÃ©partition par zone
-                    st.subheader("ðŸ—ºï¸ RÃ©partition par zone")
+                    # Zone breakdown
+                    st.subheader("🗺️ Distribution by zone")
                     col1, col2, col3, col4 = st.columns(4)
                     
                     zones_info = {
-                        "north": ("ðŸ§­ North", "Zone nord de San Antonio"),
-                        "south": ("ðŸ§­ South", "Zone sud de San Antonio"),
-                        "east": ("ðŸ§­ East", "Zone est de San Antonio"),
-                        "west": ("ðŸ§­ West", "Zone ouest de San Antonio")
+                        "north": ("🧭 North", "North zone of San Antonio"),
+                        "south": ("🧭 South", "South zone of San Antonio"),
+                        "east": ("🧭 East", "East zone of San Antonio"),
+                        "west": ("🧭 West", "West zone of San Antonio")
                     }
                     
                     for idx, (zone_key, (zone_label, zone_desc)) in enumerate(zones_info.items()):
                         with [col1, col2, col3, col4][idx]:
                             st.metric(zone_label, stats[zone_key], help=zone_desc)
                     
-                    # Section tÃ©lÃ©chargement
+                    # Download section
                     st.markdown("---")
-                    st.subheader("ðŸ’¾ TÃ©lÃ©charger les rÃ©sultats")
+                    st.subheader("💾 Download results")
                     
                     output_dir = Path("data/outputs")
                     
-                    # Boutons de tÃ©lÃ©chargement par zone
+                    # Zone download buttons
                     col1, col2, col3, col4 = st.columns(4)
                     zones = ["north", "south", "east", "west"]
                     
@@ -187,7 +186,7 @@ if uploaded_file is not None:
                         if file_path.exists() and stats[zone] > 0:
                             with open(file_path, "rb") as f:
                                 [col1, col2, col3, col4][idx].download_button(
-                                    label=f"ðŸ“¥ {zone.upper()} ({stats[zone]})",
+                                    label=f"📥 {zone.upper()} ({stats[zone]})",
                                     data=f,
                                     file_name=f"{zone}_san_antonio.csv",
                                     mime="text/csv",
@@ -195,18 +194,18 @@ if uploaded_file is not None:
                                 )
                         else:
                             [col1, col2, col3, col4][idx].button(
-                                f"ðŸ“¥ {zone.upper()} (0)",
+                                f"📥 {zone.upper()} (0)",
                                 disabled=True,
                                 use_container_width=True
                             )
                     
-                    # TÃ©lÃ©charger toutes les adresses
+                    # Download all addresses
                     st.markdown("")
                     all_file = output_dir / "all_addresses_geocoded.csv"
                     if all_file.exists():
                         with open(all_file, "rb") as f:
                             st.download_button(
-                                label=f"ðŸ“¥ TÃ©lÃ©charger TOUTES les adresses ({stats['geocoded']} total)",
+                                label=f"📥 Download ALL addresses ({stats['geocoded']} total)",
                                 data=f,
                                 file_name="all_addresses_geocoded.csv",
                                 mime="text/csv",
@@ -215,44 +214,43 @@ if uploaded_file is not None:
                             )
                     
                 except Exception as e:
-                    st.error(f"âŒ Erreur lors du traitement : {str(e)}")
-                    with st.expander("ðŸ” DÃ©tails de l'erreur"):
+                    st.error(f"❌ Error during processing: {str(e)}")
+                    with st.expander("🔍 Error details"):
                         st.exception(e)
                 
                 finally:
-                    # Nettoyer le fichier temporaire
+                    # Clean temp file
                     try:
                         Path(tmp_path).unlink(missing_ok=True)
                     except:
                         pass
+
 else:
-    # Message d'accueil
-    st.info("?? **Commencez par uploader un fichier Excel (.xlsx) d'adresses**")
+    # Welcome message
+    st.info("👆 **Start by uploading an Excel (.xlsx) or CSV file**")
     
-    st.info("Upload a Excel (.xlsx) or CSV file of addresses to start")
+    st.markdown("### 🎯 How it works")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
-        **1. Lecture du fichier**
-        - Lit les adresses depuis Excel (.xlsx)
+        **1. File reading**
+        - Reads addresses from Excel/CSV
+        - Auto-detects column names
         
-        
-        **2. GÃ©ocodage intelligent**
-        - OpenStreetMap (gratuit)
+        **2. Smart geocoding**
+        - OpenStreetMap (free)
         - Google Maps (backup)
         """)
     
     with col2:
         st.markdown("""
-        **3. Filtrage gÃ©ographique**
-        - Classement par zone
-        - Export CSV sÃ©parÃ© par zone
+        **3. Geographic filtering**
+        - Classification by zone
+        - Separate CSV export per zone
         
-        **4. TÃ©lÃ©chargement facile**
-        - Un fichier par zone
-        - Format CSV prÃªt Ã  l'emploi
+        **4. Easy download**
+        - One file per zone
+        - Ready-to-use CSV format
         """)
-
-
