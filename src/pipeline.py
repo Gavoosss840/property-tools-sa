@@ -15,11 +15,10 @@ import pandas as pd
 
 from .geocode_hybrid import geocode_hybrid_batch
 from .area_filters import (
-    filter_by_polygon,
-    NORTH_SA_RECT,
-    SOUTH_SA_RECT,
-    EAST_SA_RECT,
-    WEST_SA_RECT,
+    filter_north_san_antonio,
+    filter_south_san_antonio,
+    filter_east_san_antonio,
+    filter_west_san_antonio,
 )
 from .io_utils import load_csv as load_csv_normalized
 from .io_utils import load_excel as load_excel_normalized
@@ -51,10 +50,10 @@ def _run_pipeline(df: pd.DataFrame) -> Dict[str, int]:
     # Zones (valid lat/lon only)
     df_geo_valid = df_geo.dropna(subset=["lat", "lon"]).copy()
 
-    north_df = filter_by_polygon(df_geo_valid, NORTH_SA_RECT)
-    south_df = filter_by_polygon(df_geo_valid, SOUTH_SA_RECT)
-    east_df = filter_by_polygon(df_geo_valid, EAST_SA_RECT)
-    west_df = filter_by_polygon(df_geo_valid, WEST_SA_RECT)
+    north_df = filter_north_san_antonio(df_geo_valid)
+    south_df = filter_south_san_antonio(df_geo_valid)
+    east_df = filter_east_san_antonio(df_geo_valid)
+    west_df = filter_west_san_antonio(df_geo_valid)
 
     # Save per-zone CSVs (create empty files if no rows)
     (outputs_dir / "north_san_antonio.csv").write_text("") if len(north_df) == 0 else north_df.to_csv(outputs_dir / "north_san_antonio.csv", index=False)

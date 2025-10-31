@@ -110,8 +110,8 @@ def get_polygon_bounds(polygon_coords: Iterable[Tuple[float, float]]) -> dict:
 # ------------------------------
 
 # Les rectangles suivants couvrent désormais l'ensemble de la zone métropolitaine
-# de San Antonio, avec une séparation nord/sud autour de 29.48° de latitude et
-# une séparation est/ouest autour de -98.45° de longitude.
+# de San Antonio. La séparation nord/sud se fait autour de 29.48° de latitude
+# et la séparation est/ouest autour de -98.45° de longitude.
 LAT_SPLIT = 29.48
 NORTH_LAT_MAX = 30.00
 SOUTH_LAT_MIN = 28.80
@@ -150,3 +150,59 @@ WEST_SA_RECT = [
     (WEST_LON_MIN, SOUTH_LAT_MIN),
     (WEST_LON_MIN, NORTH_LAT_MAX),
 ]
+
+
+def filter_north_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
+    """Adresse au nord de la ville (latitude >= LAT_SPLIT)."""
+    df = require_latlon(df)
+    lat = df["lat"].astype(float)
+    lon = df["lon"].astype(float)
+    mask = (
+        (lat >= LAT_SPLIT)
+        & (lat <= NORTH_LAT_MAX)
+        & (lon >= WEST_LON_MIN)
+        & (lon <= EAST_LON_MAX)
+    )
+    return df[mask].copy()
+
+
+def filter_south_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
+    """Adresse au sud de la ville (latitude < LAT_SPLIT)."""
+    df = require_latlon(df)
+    lat = df["lat"].astype(float)
+    lon = df["lon"].astype(float)
+    mask = (
+        (lat < LAT_SPLIT)
+        & (lat >= SOUTH_LAT_MIN)
+        & (lon >= WEST_LON_MIN)
+        & (lon <= EAST_LON_MAX)
+    )
+    return df[mask].copy()
+
+
+def filter_east_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
+    """Adresse à l'est (longitude >= EAST_SPLIT_LON)."""
+    df = require_latlon(df)
+    lat = df["lat"].astype(float)
+    lon = df["lon"].astype(float)
+    mask = (
+        (lon >= EAST_SPLIT_LON)
+        & (lon <= EAST_LON_MAX)
+        & (lat >= SOUTH_LAT_MIN)
+        & (lat <= NORTH_LAT_MAX)
+    )
+    return df[mask].copy()
+
+
+def filter_west_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
+    """Adresse à l'ouest (longitude < EAST_SPLIT_LON)."""
+    df = require_latlon(df)
+    lat = df["lat"].astype(float)
+    lon = df["lon"].astype(float)
+    mask = (
+        (lon < EAST_SPLIT_LON)
+        & (lon >= WEST_LON_MIN)
+        & (lat >= SOUTH_LAT_MIN)
+        & (lat <= NORTH_LAT_MAX)
+    )
+    return df[mask].copy()

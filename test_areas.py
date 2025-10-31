@@ -1,12 +1,12 @@
 # test_areas.py
 import pandas as pd
 from src.area_filters import (
-    filter_by_polygon,
-    get_polygon_bounds,
-    NORTH_SA_RECT,
-    SOUTH_SA_RECT,
-    EAST_SA_RECT,
-    WEST_SA_RECT
+    filter_north_san_antonio,
+    filter_south_san_antonio,
+    filter_east_san_antonio,
+    filter_west_san_antonio,
+    LAT_SPLIT,
+    EAST_SPLIT_LON,
 )
 
 print("🗺️  Test des filtres géographiques - San Antonio\n")
@@ -23,23 +23,26 @@ print()
 
 # Tester chaque zone
 zones = {
-    "NORTH": NORTH_SA_RECT,
-    "SOUTH": SOUTH_SA_RECT,
-    "EAST": EAST_SA_RECT,
-    "WEST": WEST_SA_RECT,
+    "NORTH": filter_north_san_antonio,
+    "SOUTH": filter_south_san_antonio,
+    "EAST": filter_east_san_antonio,
+    "WEST": filter_west_san_antonio,
 }
 
 results = {}
 
-for zone_name, polygon in zones.items():
-    bounds = get_polygon_bounds(polygon)
-    df_zone = filter_by_polygon(df, polygon)
+for zone_name, filter_fn in zones.items():
+    df_zone = filter_fn(df)
     results[zone_name] = df_zone
     
     print(f"{'='*60}")
     print(f"🔲 Zone {zone_name} de San Antonio")
-    print(f"   Lat: {bounds['min_lat']:.4f} → {bounds['max_lat']:.4f}")
-    print(f"   Lon: {bounds['min_lon']:.4f} → {bounds['max_lon']:.4f}")
+    if zone_name in ("NORTH", "SOUTH"):
+        relation = ">=" if zone_name == "NORTH" else "<"
+        print(f"   Règle lat : latitude {relation} {LAT_SPLIT}")
+    else:
+        relation = ">=" if zone_name == "EAST" else "<"
+        print(f"   Règle lon : longitude {relation} {EAST_SPLIT_LON}")
     print(f"   📊 {len(df_zone)}/{len(df)} adresses dans cette zone")
     
     if len(df_zone) > 0:
