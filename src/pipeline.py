@@ -14,12 +14,7 @@ from typing import Dict
 import pandas as pd
 
 from .geocode_hybrid import geocode_hybrid_batch
-from .area_filters import (
-    filter_north_san_antonio,
-    filter_south_san_antonio,
-    filter_east_san_antonio,
-    filter_west_san_antonio,
-)
+from .area_filters import assign_san_antonio_zones, ZONE_KEYS
 from .io_utils import load_csv as load_csv_normalized
 from .io_utils import load_excel as load_excel_normalized
 
@@ -45,36 +40,46 @@ def _run_pipeline(df: pd.DataFrame) -> Dict[str, int]:
 
     # Save all geocoded addresses
     all_path = outputs_dir / "all_addresses_geocoded.csv"
-    df_geo.to_csv(all_path, index=False)
+    df_geo_with_zone = df_geo.copy()
+    df_geo_with_zone["zone"] = None
 
     # Zones (valid lat/lon only)
     df_geo_valid = df_geo.dropna(subset=["lat", "lon"]).copy()
 
-    north_df = filter_north_san_antonio(df_geo_valid)
-    south_df = filter_south_san_antonio(df_geo_valid)
-    east_df = filter_east_san_antonio(df_geo_valid)
-    west_df = filter_west_san_antonio(df_geo_valid)
+    df_zoned = assign_san_antonio_zones(df_geo_valid)
+    zone_dfs = {
+        zone: df_zoned[df_zoned["zone"] == zone].drop(columns=["zone"])
+        for zone in ZONE_KEYS
+    }
+    unassigned_df = df_zoned[df_zoned["zone"].isna()].drop(columns=["zone"])
+
+    # Update overall export with zone info
+    df_geo_with_zone.loc[df_zoned.index, "zone"] = df_zoned["zone"]
+    df_geo_with_zone.to_csv(all_path, index=False)
 
     # Save per-zone CSVs (create empty files if no rows)
-    (outputs_dir / "north_san_antonio.csv").write_text("") if len(north_df) == 0 else north_df.to_csv(outputs_dir / "north_san_antonio.csv", index=False)
-    (outputs_dir / "south_san_antonio.csv").write_text("") if len(south_df) == 0 else south_df.to_csv(outputs_dir / "south_san_antonio.csv", index=False)
-    (outputs_dir / "east_san_antonio.csv").write_text("") if len(east_df) == 0 else east_df.to_csv(outputs_dir / "east_san_antonio.csv", index=False)
-    (outputs_dir / "west_san_antonio.csv").write_text("") if len(west_df) == 0 else west_df.to_csv(outputs_dir / "west_san_antonio.csv", index=False)
+    for zone in ZONE_KEYS:
+        path = outputs_dir / f"{zone}_san_antonio.csv"
+        zone_df = zone_dfs[zone]
+        if zone_df.empty:
+            path.write_text("")
+        else:
+            zone_df.to_csv(path, index=False)
 
     # Stats
     total = len(df_geo)
     geocoded = df_geo_valid.shape[0]
-    assigned = sum(len(x) for x in (north_df, south_df, east_df, west_df))
-    unassigned = max(0, geocoded - assigned)
+    assigned = sum(len(zone_dfs[zone]) for zone in ZONE_KEYS)
+    unassigned = len(unassigned_df)
 
     return {
         "total_addresses": int(total),
         "geocoded": int(geocoded),
         "unassigned": int(unassigned),
-        "north": int(len(north_df)),
-        "south": int(len(south_df)),
-        "east": int(len(east_df)),
-        "west": int(len(west_df)),
+        "north": int(len(zone_dfs["north"])),
+        "south": int(len(zone_dfs["south"])),
+        "east": int(len(zone_dfs["east"])),
+        "west": int(len(zone_dfs["west"])),
     }
 
 

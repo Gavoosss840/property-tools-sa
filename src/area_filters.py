@@ -118,6 +118,7 @@ SOUTH_LAT_MIN = 28.80
 WEST_LON_MIN = -100.00
 EAST_LON_MAX = -97.00
 EAST_SPLIT_LON = -98.45
+ZONE_KEYS = ("north", "south", "east", "west")
 
 NORTH_SA_RECT = [
     (WEST_LON_MIN, NORTH_LAT_MAX),
@@ -152,57 +153,69 @@ WEST_SA_RECT = [
 ]
 
 
-def filter_north_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
-    """Adresse au nord de la ville (latitude >= LAT_SPLIT)."""
-    df = require_latlon(df)
-    lat = df["lat"].astype(float)
-    lon = df["lon"].astype(float)
-    mask = (
-        (lat >= LAT_SPLIT)
-        & (lat <= NORTH_LAT_MAX)
-        & (lon >= WEST_LON_MIN)
-        & (lon <= EAST_LON_MAX)
+def _classify_zone(lat: float, lon: float) -> Optional[str]:
+    """Return the primary zone for the provided coordinate."""
+    try:
+        lat_f = float(lat)
+        lon_f = float(lon)
+    except (TypeError, ValueError):
+        return None
+
+    if not (
+        SOUTH_LAT_MIN <= lat_f <= NORTH_LAT_MAX
+        and WEST_LON_MIN <= lon_f <= EAST_LON_MAX
+    ):
+        return None
+
+    lat_delta = abs(lat_f - LAT_SPLIT)
+    lon_delta = abs(lon_f - EAST_SPLIT_LON)
+
+    if lat_delta >= lon_delta:
+        return "north" if lat_f >= LAT_SPLIT else "south"
+    return "east" if lon_f >= EAST_SPLIT_LON else "west"
+
+
+def assign_san_antonio_zones(df: pd.DataFrame) -> pd.DataFrame:
+    """Attach a 'zone' column with the unique zone assignment per address."""
+    df_latlon = require_latlon(df)
+    df_zoned = df_latlon.copy()
+    df_zoned["zone"] = df_zoned.apply(
+        lambda row: _classify_zone(row["lat"], row["lon"]),
+        axis=1,
     )
-    return df[mask].copy()
+    return df_zoned
+
+
+def filter_north_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
+    """Return rows whose primary zone is North San Antonio."""
+    df_zoned = assign_san_antonio_zones(df)
+    return df_zoned[df_zoned["zone"] == "north"].drop(columns=["zone"])
 
 
 def filter_south_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
-    """Adresse au sud de la ville (latitude < LAT_SPLIT)."""
-    df = require_latlon(df)
-    lat = df["lat"].astype(float)
-    lon = df["lon"].astype(float)
-    mask = (
-        (lat < LAT_SPLIT)
-        & (lat >= SOUTH_LAT_MIN)
-        & (lon >= WEST_LON_MIN)
-        & (lon <= EAST_LON_MAX)
-    )
-    return df[mask].copy()
+    """Return rows whose primary zone is South San Antonio."""
+    df_zoned = assign_san_antonio_zones(df)
+    return df_zoned[df_zoned["zone"] == "south"].drop(columns=["zone"])
 
 
 def filter_east_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
-    """Adresse à l'est (longitude >= EAST_SPLIT_LON)."""
-    df = require_latlon(df)
-    lat = df["lat"].astype(float)
-    lon = df["lon"].astype(float)
-    mask = (
-        (lon >= EAST_SPLIT_LON)
-        & (lon <= EAST_LON_MAX)
-        & (lat >= SOUTH_LAT_MIN)
-        & (lat <= NORTH_LAT_MAX)
-    )
-    return df[mask].copy()
+    """Return rows whose primary zone is East San Antonio."""
+    df_zoned = assign_san_antonio_zones(df)
+    return df_zoned[df_zoned["zone"] == "east"].drop(columns=["zone"])
 
 
 def filter_west_san_antonio(df: pd.DataFrame) -> pd.DataFrame:
-    """Adresse à l'ouest (longitude < EAST_SPLIT_LON)."""
-    df = require_latlon(df)
-    lat = df["lat"].astype(float)
-    lon = df["lon"].astype(float)
-    mask = (
-        (lon < EAST_SPLIT_LON)
-        & (lon >= WEST_LON_MIN)
-        & (lat >= SOUTH_LAT_MIN)
-        & (lat <= NORTH_LAT_MAX)
-    )
-    return df[mask].copy()
+    """Return rows whose primary zone is West San Antonio."""
+    df_zoned = assign_san_antonio_zones(df)
+    return df_zoned[df_zoned["zone"] == "west"].drop(columns=["zone"])
+
+
+def split_zones_unique(df: pd.DataFrame) -> dict:
+    """Split dataframe into unique zones using single assignment per address."""
+    df_zoned = assign_san_antonio_zones(df)
+    result = {
+        zone: df_zoned[df_zoned["zone"] == zone].drop(columns=["zone"])
+        for zone in ZONE_KEYS
+    }
+    result["unassigned"] = df_zoned[df_zoned["zone"].isna()].drop(columns=["zone"])
+    return result
