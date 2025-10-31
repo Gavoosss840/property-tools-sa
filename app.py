@@ -122,13 +122,87 @@ uploaded_file = st.file_uploader(
     help="Suggested columns: address, city, state, zip (common variants auto-detected)"
 )
 
+
+def render_pipeline_results(stats):
+    """Display the latest pipeline outcome and download buttons."""
+    st.success("✅ Pipeline completed successfully!")
+
+    st.subheader("📊 Results")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total addresses", stats["total_addresses"])
+    with col2:
+        pct = (
+            f"{stats['geocoded'] / stats['total_addresses'] * 100:.0f}%"
+            if stats["total_addresses"] > 0
+            else "0%"
+        )
+        st.metric("Geocoded", stats["geocoded"], delta=pct)
+    with col3:
+        st.metric("Out of zones", stats["unassigned"])
+
+    st.subheader("🗺️ Distribution by zone")
+    zone_cols = st.columns(4)
+    zones_info = [
+        ("north", "🧭 North", "North zone of San Antonio"),
+        ("south", "🧭 South", "South zone of San Antonio"),
+        ("east", "🧭 East", "East zone of San Antonio"),
+        ("west", "🧭 West", "West zone of San Antonio"),
+    ]
+    for idx, (zone_key, zone_label, zone_desc) in enumerate(zones_info):
+        with zone_cols[idx]:
+            st.metric(zone_label, stats[zone_key], help=zone_desc)
+
+    st.markdown("---")
+    st.subheader("💾 Download results")
+    download_cols = st.columns(4)
+    for idx, (zone_key, _, _) in enumerate(zones_info):
+        file_path = Path("data/outputs") / f"{zone_key}_san_antonio.csv"
+        if file_path.exists() and stats[zone_key] > 0:
+            download_cols[idx].download_button(
+                label=f"📥 {zone_key.upper()} ({stats[zone_key]})",
+                data=file_path.read_bytes(),
+                file_name=f"{zone_key}_san_antonio.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        else:
+            download_cols[idx].button(
+                f"📥 {zone_key.upper()} (0)",
+                disabled=True,
+                use_container_width=True,
+            )
+
+    all_file = Path("data/outputs") / "all_addresses_geocoded.csv"
+    if all_file.exists():
+        st.download_button(
+            label=f"📥 Download ALL addresses ({stats['geocoded']} total)",
+            data=all_file.read_bytes(),
+            file_name="all_addresses_geocoded.csv",
+            mime="text/csv",
+            use_container_width=True,
+            type="secondary",
+        )
+
 if uploaded_file is not None:
     st.success(f"✅ File loaded: **{uploaded_file.name}** ({uploaded_file.size / 1024:.1f} KB)")
+    session = st.session_state
+
+    file_signature = f"{uploaded_file.name}:{uploaded_file.size}"
+    if session.get("last_file_signature") != file_signature:
+        session["last_file_signature"] = file_signature
+        session.pop("pipeline_stats", None)
+        session.pop("pipeline_error", None)
     
     # Run button
     col1, col2, col3 = st.columns([2, 3, 2])
     with col2:
-        run_button = st.button("🚀 RUN PIPELINE", type="primary", use_container_width=True)
+        run_button = st.button(
+            "🚀 RUN PIPELINE",
+            type="primary",
+            use_container_width=True,
+            key="run_pipeline_btn",
+        )
     
     if run_button:
         status_container = st.container()
@@ -145,82 +219,19 @@ if uploaded_file is not None:
                     tmp_path = tmp_file.name
 
                 try:
-                    # Run pipeline
-                    stats = run_excel_pipeline(tmp_path) if _is_xlsx else run_csv_pipeline(tmp_path)
-                    st.success("✅ Pipeline completed successfully!")
-                    
-                    # Global stats
-                    st.subheader("📊 Results")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Total addresses", stats["total_addresses"])
-                    with col2:
-                        pct = f"{stats['geocoded']/stats['total_addresses']*100:.0f}%" if stats['total_addresses'] > 0 else "0%"
-                        st.metric("Geocoded", stats["geocoded"], delta=pct)
-                    with col3:
-                        st.metric("Out of zones", stats["unassigned"])
-                    
-                    # Zone breakdown
-                    st.subheader("🗺️ Distribution by zone")
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    zones_info = {
-                        "north": ("🧭 North", "North zone of San Antonio"),
-                        "south": ("🧭 South", "South zone of San Antonio"),
-                        "east": ("🧭 East", "East zone of San Antonio"),
-                        "west": ("🧭 West", "West zone of San Antonio")
-                    }
-                    
-                    for idx, (zone_key, (zone_label, zone_desc)) in enumerate(zones_info.items()):
-                        with [col1, col2, col3, col4][idx]:
-                            st.metric(zone_label, stats[zone_key], help=zone_desc)
-                    
-                    # Download section
-                    st.markdown("---")
-                    st.subheader("💾 Download results")
-                    
-                    output_dir = Path("data/outputs")
-                    
-                    # Zone download buttons
-                    col1, col2, col3, col4 = st.columns(4)
-                    zones = ["north", "south", "east", "west"]
-                    
-                    for idx, zone in enumerate(zones):
-                        file_path = output_dir / f"{zone}_san_antonio.csv"
-                        if file_path.exists() and stats[zone] > 0:
-                            with open(file_path, "rb") as f:
-                                [col1, col2, col3, col4][idx].download_button(
-                                    label=f"📥 {zone.upper()} ({stats[zone]})",
-                                    data=f,
-                                    file_name=f"{zone}_san_antonio.csv",
-                                    mime="text/csv",
-                                    use_container_width=True
-                                )
-                        else:
-                            [col1, col2, col3, col4][idx].button(
-                                f"📥 {zone.upper()} (0)",
-                                disabled=True,
-                                use_container_width=True
-                            )
-                    
-                    # Download all addresses
-                    st.markdown("")
-                    all_file = output_dir / "all_addresses_geocoded.csv"
-                    if all_file.exists():
-                        with open(all_file, "rb") as f:
-                            st.download_button(
-                                label=f"📥 Download ALL addresses ({stats['geocoded']} total)",
-                                data=f,
-                                file_name="all_addresses_geocoded.csv",
-                                mime="text/csv",
-                                use_container_width=True,
-                                type="secondary"
-                            )
-                    
+                    stats = (
+                        run_excel_pipeline(tmp_path)
+                        if _is_xlsx
+                        else run_csv_pipeline(tmp_path)
+                    )
+                    session["pipeline_stats"] = stats
+                    session.pop("pipeline_error", None)
                 except Exception as e:
                     st.error(f"❌ Error during processing: {str(e)}")
                     with st.expander("🔍 Error details"):
                         st.exception(e)
+                    session["pipeline_error"] = str(e)
+                    session.pop("pipeline_stats", None)
                 
                 finally:
                     # Clean temp file
@@ -228,6 +239,12 @@ if uploaded_file is not None:
                         Path(tmp_path).unlink(missing_ok=True)
                     except:
                         pass
+
+    stats_to_render = session.get("pipeline_stats")
+    if stats_to_render:
+        render_pipeline_results(stats_to_render)
+    elif session.get("pipeline_error"):
+        st.error(f"❌ Last pipeline run failed: {session['pipeline_error']}")
 
 else:
     # Welcome message
