@@ -25,7 +25,10 @@ CACHE_PATH = Path("data/geocode_cache.csv")
 def _load_cache() -> dict:
     """Charge le cache de géocodage depuis le CSV"""
     if CACHE_PATH.exists():
-        df = pd.read_csv(CACHE_PATH)
+        try:
+            df = pd.read_csv(CACHE_PATH)
+        except pd.errors.EmptyDataError:
+            return {}
         return {row["q"]: (row["lat"], row["lon"]) for _, row in df.iterrows()}
     return {}
 

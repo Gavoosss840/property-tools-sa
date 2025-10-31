@@ -25,7 +25,11 @@ def check_password():
     
     def password_entered():
         """Vérifie le mot de passe entré"""
-        correct_password = st.secrets.get("PASSWORD", os.getenv("PASSWORD", ""))
+        try:
+            secrets_password = st.secrets["PASSWORD"]
+        except Exception:
+            secrets_password = None
+        correct_password = secrets_password or os.getenv("PASSWORD", "")
         
         if st.session_state["password"] == correct_password:
             st.session_state["password_correct"] = True
