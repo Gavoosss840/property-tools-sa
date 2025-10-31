@@ -15,6 +15,7 @@ import pandas as pd
 
 from .geocode_hybrid import geocode_hybrid_batch
 from .area_filters import assign_san_antonio_zones, ZONE_KEYS
+from .property_enrichment import enrich_properties
 from .io_utils import load_csv as load_csv_normalized
 from .io_utils import load_excel as load_excel_normalized
 
@@ -37,6 +38,7 @@ def _run_pipeline(df: pd.DataFrame) -> Dict[str, int]:
 
     # Geocode
     df_geo = geocode_hybrid_batch(df)
+    df_geo = enrich_properties(df_geo)
 
     # Save all geocoded addresses
     all_path = outputs_dir / "all_addresses_geocoded.csv"
