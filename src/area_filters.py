@@ -63,7 +63,10 @@ def filter_by_polygon(df: pd.DataFrame, polygon_coords: Iterable[Tuple[float, fl
     df = require_latlon(df)
     poly = Polygon(polygon_coords)  # on construit le polygone Shapely
     # pour chaque ligne, on crée un Point(lon, lat) et on teste s'il est dans le polygone
-    mask = df.apply(lambda r: poly.contains(Point(float(r["lon"]), float(r["lat"]))), axis=1)
+    mask = df.apply(
+        lambda r: poly.contains(Point(float(r["lon"]), float(r["lat"]))),
+        axis=1,
+    )
     return df[mask].copy()
 
 # ------------------------------
@@ -106,38 +109,44 @@ def get_polygon_bounds(polygon_coords: Iterable[Tuple[float, float]]) -> dict:
 # POLYGONES PRÉ-DÉFINIS pour San Antonio
 # ------------------------------
 
-# Rectangle "North San Antonio"
-# Coordonnées (lon, lat) autour de San Antonio
-# top ≈ 29.60, cut line nord ≈ 29.48, lon ≈ (-98.78 à -98.20)
+# Les rectangles suivants couvrent désormais l'ensemble de la zone métropolitaine
+# de San Antonio, avec une séparation nord/sud autour de 29.48° de latitude et
+# une séparation est/ouest autour de -98.45° de longitude.
+LAT_SPLIT = 29.48
+NORTH_LAT_MAX = 30.00
+SOUTH_LAT_MIN = 28.80
+WEST_LON_MIN = -100.00
+EAST_LON_MAX = -97.00
+EAST_SPLIT_LON = -98.45
+
 NORTH_SA_RECT = [
-    (-98.78, 29.60),  # top-left
-    (-98.20, 29.60),  # top-right
-    (-98.20, 29.48),  # bottom-right (ligne de coupe nord)
-    (-98.78, 29.48),  # bottom-left
-    (-98.78, 29.60),  # close polygon
+    (WEST_LON_MIN, NORTH_LAT_MAX),
+    (EAST_LON_MAX, NORTH_LAT_MAX),
+    (EAST_LON_MAX, LAT_SPLIT),
+    (WEST_LON_MIN, LAT_SPLIT),
+    (WEST_LON_MIN, NORTH_LAT_MAX),
 ]
 
-# Tu peux ajouter d'autres zones ici :
 SOUTH_SA_RECT = [
-    (-98.78, 29.48),  # top-left
-    (-98.20, 29.48),  # top-right
-    (-98.20, 29.30),  # bottom-right
-    (-98.78, 29.30),  # bottom-left
-    (-98.78, 29.48),  # close
+    (WEST_LON_MIN, LAT_SPLIT),
+    (EAST_LON_MAX, LAT_SPLIT),
+    (EAST_LON_MAX, SOUTH_LAT_MIN),
+    (WEST_LON_MIN, SOUTH_LAT_MIN),
+    (WEST_LON_MIN, LAT_SPLIT),
 ]
 
 EAST_SA_RECT = [
-    (-98.30, 29.60),  # top-left
-    (-98.10, 29.60),  # top-right
-    (-98.10, 29.30),  # bottom-right
-    (-98.30, 29.30),  # bottom-left
-    (-98.30, 29.60),  # close
+    (EAST_SPLIT_LON, NORTH_LAT_MAX),
+    (EAST_LON_MAX, NORTH_LAT_MAX),
+    (EAST_LON_MAX, SOUTH_LAT_MIN),
+    (EAST_SPLIT_LON, SOUTH_LAT_MIN),
+    (EAST_SPLIT_LON, NORTH_LAT_MAX),
 ]
 
 WEST_SA_RECT = [
-    (-98.78, 29.60),  # top-left
-    (-98.50, 29.60),  # top-right
-    (-98.50, 29.30),  # bottom-right
-    (-98.78, 29.30),  # bottom-left
-    (-98.78, 29.60),  # close
+    (WEST_LON_MIN, NORTH_LAT_MAX),
+    (EAST_SPLIT_LON, NORTH_LAT_MAX),
+    (EAST_SPLIT_LON, SOUTH_LAT_MIN),
+    (WEST_LON_MIN, SOUTH_LAT_MIN),
+    (WEST_LON_MIN, NORTH_LAT_MAX),
 ]
