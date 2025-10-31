@@ -10,6 +10,31 @@ from src.pipeline import run_excel_pipeline, run_csv_pipeline
 # Charger les variables d'environnement
 load_dotenv()
 
+OUTPUT_DIR = Path("data/outputs")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_FILES = [
+    "north_san_antonio.csv",
+    "south_san_antonio.csv",
+    "east_san_antonio.csv",
+    "west_san_antonio.csv",
+    "all_addresses_geocoded.csv",
+]
+
+
+def clear_pipeline_outputs(reset_session: bool = True) -> None:
+    """Delete generated CSVs and optionally reset session cache."""
+    for name in OUTPUT_FILES:
+        path = OUTPUT_DIR / name
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    if reset_session:
+        st.session_state.pop("pipeline_stats", None)
+        st.session_state.pop("pipeline_error", None)
+        st.session_state.pop("last_file_signature", None)
+
 # Configuration de la page
 st.set_page_config(
     page_title="Property Tools - San Antonio",
@@ -157,7 +182,7 @@ def render_pipeline_results(stats):
     st.subheader("💾 Download results")
     download_cols = st.columns(4)
     for idx, (zone_key, _, _) in enumerate(zones_info):
-        file_path = Path("data/outputs") / f"{zone_key}_san_antonio.csv"
+        file_path = OUTPUT_DIR / f"{zone_key}_san_antonio.csv"
         if file_path.exists() and stats[zone_key] > 0:
             download_cols[idx].download_button(
                 label=f"📥 {zone_key.upper()} ({stats[zone_key]})",
@@ -173,7 +198,7 @@ def render_pipeline_results(stats):
                 use_container_width=True,
             )
 
-    all_file = Path("data/outputs") / "all_addresses_geocoded.csv"
+    all_file = OUTPUT_DIR / "all_addresses_geocoded.csv"
     if all_file.exists():
         st.download_button(
             label=f"📥 Download ALL addresses ({stats['geocoded']} total)",
@@ -190,6 +215,7 @@ if uploaded_file is not None:
 
     file_signature = f"{uploaded_file.name}:{uploaded_file.size}"
     if session.get("last_file_signature") != file_signature:
+        clear_pipeline_outputs(reset_session=False)
         session["last_file_signature"] = file_signature
         session.pop("pipeline_stats", None)
         session.pop("pipeline_error", None)
@@ -247,8 +273,11 @@ if uploaded_file is not None:
         st.error(f"❌ Last pipeline run failed: {session['pipeline_error']}")
 
 else:
-    # Welcome message
-    st.info("👆 **Start by uploading an Excel (.xlsx) or CSV file**")
+    if st.session_state.get("pipeline_stats") or st.session_state.get("last_file_signature"):
+        clear_pipeline_outputs()
+        st.info("🔄 Résultats précédents effacés. Chargez un nouveau fichier pour relancer la pipeline.")
+    else:
+        st.info("👆 **Start by uploading an Excel (.xlsx) or CSV file**")
     
     st.markdown("### 🎯 How it works")
     
